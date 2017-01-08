@@ -18,6 +18,7 @@
 // - Linux version
 // - optimize stb_get_resource - something better than linear search with strcmp
 // - define which files to compile in yaml file
+// - text mode
 
 #pragma once
 #ifndef _WIN32
@@ -77,10 +78,11 @@ inline bool stb_compile_dir(const char* path, const char* pattern, FILE* fout)
 		if (strcmp(data.cFileName, "..") == 0) continue;
 		bool is_directory = (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 		strcpy_s(tmp, path);
-		strcat_s(tmp, data.cFileName);
+		strcat_s(tmp, data.cFileName); 
 		if (is_directory)
 		{
-			if (stb_compile_dir(tmp, pattern, fout))
+			strcat_s(tmp, "/");
+			if (!stb_compile_dir(tmp, pattern, fout))
 			{
 				FindClose(h);
 				return false;
