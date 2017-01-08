@@ -19,6 +19,7 @@
 // - optimize mf_get_resource - something better than linear search with strcmp
 // - define which files to compile in yaml file
 // - text mode
+// - handle case when no resources are found
 
 #pragma once
 #ifndef _WIN32
@@ -43,8 +44,27 @@ struct mf_resource
 };
 
 
+struct mf_resource_compiler
+{
+	FILE* fout;
+	int counter;
+};
+
+
 extern const mf_resource* mf_resources;
 extern int mf_resources_count;
+
+
+inline mf_resource_compiler mf_begin_compile(const char* output)
+{
+	mf_resource_compiler compiler;
+	compiler.fout = fopen(output, "wb");
+	if (!compiler.fout) return compiler;
+
+	compiler.counter = 0;
+	fputs("#include \"mf_resource.h\"\n", compiler.fout);
+	return compiler;
+}
 
 
 inline bool mf_compile_file(const char* file, FILE* fout, int* counter)
@@ -73,7 +93,7 @@ inline bool mf_compile_file(const char* file, FILE* fout, int* counter)
 }
 
 
-inline bool mf_compile_dir(const char* path, const char* pattern, FILE* fout, int* counter)
+inline bool mf_compile_dir_internal(const char* path, const char* pattern, FILE* fout, int* counter)
 {
 	WIN32_FIND_DATAA data;
 	char tmp[MAX_PATH];
@@ -91,7 +111,7 @@ inline bool mf_compile_dir(const char* path, const char* pattern, FILE* fout, in
 		if (is_directory)
 		{
 			strcat_s(tmp, "/");
-			if (!mf_compile_dir(tmp, pattern, fout, counter))
+			if (!mf_compile_dir_internal(tmp, pattern, fout, counter))
 			{
 				FindClose(h);
 				return false;
@@ -111,6 +131,25 @@ inline bool mf_compile_dir(const char* path, const char* pattern, FILE* fout, in
 }
 
 
+inline bool mf_compile(mf_resource_compiler* compiler, const char* path, const char* pattern)
+{
+	return mf_compile_dir_internal(path, pattern, compiler->fout, &compiler->counter);
+}
+
+
+inline void mf_end_compile(mf_resource_compiler* compiler)
+{
+	fputs("const mf_resource mf_resources_storage[] = {\n", compiler->fout);
+	for (int i = 0; i < compiler->counter; ++i)
+	{
+		fprintf(compiler->fout, "{ mf_resource_%d_path, mf_resource_%d_value, mf_resource_%d_size }, ", i, i, i);
+	}
+	fputs("};\nconst mf_resource* mf_resources = mf_resources_storage;\n", compiler->fout);
+	fputs("int mf_resources_count = sizeof(mf_resources_storage) / sizeof(mf_resources_storage[0]);\n", compiler->fout);
+	fclose(compiler->fout);
+}
+
+
 inline bool mf_compile_dir(const char* path, const char* pattern, const char* output)
 {
 	FILE* fout = fopen(output, "wb");
@@ -118,7 +157,7 @@ inline bool mf_compile_dir(const char* path, const char* pattern, const char* ou
 
 	int counter = 0;
 	fputs("#include \"mf_resource.h\"\n", fout);
-	bool res = mf_compile_dir(path, pattern, fout, &counter);
+	bool res = mf_compile_dir_internal(path, pattern, fout, &counter);
 	fputs("const mf_resource mf_resources_storage[] = {\n", fout);
 	for (int i = 0; i < counter; ++i)
 	{
