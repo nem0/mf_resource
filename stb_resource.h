@@ -1,5 +1,5 @@
 // stb_resource is a platform-independent system for storing text and binary files in the application's executable
-// It is similar to windows' of Qt's resource system.
+// It is similar to windows' or Qt's resource system.
 // MIT License
 
 // usage:
