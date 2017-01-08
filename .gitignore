@@ -27,5 +27,6 @@ tmp/
 
 # Executables
 *.exe
+!projects/genie.exe
 *.out
 *.app
