@@ -1,4 +1,4 @@
-// stb_resource is a platform-independent system for storing text and binary files in the application's executable
+// mf_resource is a platform-independent system for storing text and binary files in the application's executable
 // It is similar to windows' or Qt's resource system.
 // MIT License
 
@@ -7,16 +7,16 @@
 // create a compiler exe:
 // int main()
 // {
-//     stb_compiler_dir("path/to/dir/", "*", "resources.cpp");
+//     mf_compiler_dir("path/to/dir/", "*", "resources.cpp");
 // }
 // This will process path/to/dir/ directory and create resources.cpp.
 // Now in your application you can get any resource 
-// const stb_resource* res = stb_get_resource("path/to/dir/test.txt");
+// const mf_resource* res = mf_get_resource("path/to/dir/test.txt");
 // if(res) printf("%s", res->value);
 
 // TODO:
 // - Linux version
-// - optimize stb_get_resource - something better than linear search with strcmp
+// - optimize mf_get_resource - something better than linear search with strcmp
 // - define which files to compile in yaml file
 // - text mode
 
@@ -27,7 +27,7 @@
 	#ifndef _CRT_SECURE_NO_WARNINGS
 		#define _CRT_SECURE_NO_WARNINGS
 	#endif
-	#ifndef STB_RESOURCE_DONT_INCLUDE_WINDOWS_H
+	#ifndef mf_RESOURCE_DONT_INCLUDE_WINDOWS_H
 		#include <windows.h>
 	#endif
 #endif
@@ -35,7 +35,7 @@
 #include <cstdio>
 
 
-struct stb_resource
+struct mf_resource
 {
 	const char* path;
 	const unsigned char* value;
@@ -43,17 +43,17 @@ struct stb_resource
 };
 
 
-extern const stb_resource* stb_resources;
-extern int stb_resources_count;
+extern const mf_resource* mf_resources;
+extern int mf_resources_count;
 
 
-inline bool stb_compile_file(const char* file, FILE* fout, int* counter)
+inline bool mf_compile_file(const char* file, FILE* fout, int* counter)
 {
 	FILE* fin = fopen(file, "rb");
 	if (!fin) return false;
 	size_t size = 0;
-	fprintf(fout, "const char* stb_resource_%d_path = \"%s\";\n", *counter, file);
-	fprintf(fout, "const unsigned char stb_resource_%d_value[] = {", *counter);
+	fprintf(fout, "const char* mf_resource_%d_path = \"%s\";\n", *counter, file);
+	fprintf(fout, "const unsigned char mf_resource_%d_value[] = {", *counter);
 	while (!feof(fin))
 	{
 		unsigned char tmp[1024];
@@ -65,7 +65,7 @@ inline bool stb_compile_file(const char* file, FILE* fout, int* counter)
 		size += read;
 	}
 	fputs("};\n", fout);
-	fprintf(fout, "const size_t stb_resource_%d_size = %d;\n", *counter, (int)size);
+	fprintf(fout, "const size_t mf_resource_%d_size = %d;\n", *counter, (int)size);
 
 	++(*counter);
 	fclose(fin);
@@ -73,7 +73,7 @@ inline bool stb_compile_file(const char* file, FILE* fout, int* counter)
 }
 
 
-inline bool stb_compile_dir(const char* path, const char* pattern, FILE* fout, int* counter)
+inline bool mf_compile_dir(const char* path, const char* pattern, FILE* fout, int* counter)
 {
 	WIN32_FIND_DATAA data;
 	char tmp[MAX_PATH];
@@ -91,7 +91,7 @@ inline bool stb_compile_dir(const char* path, const char* pattern, FILE* fout, i
 		if (is_directory)
 		{
 			strcat_s(tmp, "/");
-			if (!stb_compile_dir(tmp, pattern, fout, counter))
+			if (!mf_compile_dir(tmp, pattern, fout, counter))
 			{
 				FindClose(h);
 				return false;
@@ -99,7 +99,7 @@ inline bool stb_compile_dir(const char* path, const char* pattern, FILE* fout, i
 		}
 		else
 		{
-			if (!stb_compile_file(tmp, fout, counter))
+			if (!mf_compile_file(tmp, fout, counter))
 			{
 				FindClose(h);
 				return false;
@@ -111,44 +111,44 @@ inline bool stb_compile_dir(const char* path, const char* pattern, FILE* fout, i
 }
 
 
-inline bool stb_compile_dir(const char* path, const char* pattern, const char* output)
+inline bool mf_compile_dir(const char* path, const char* pattern, const char* output)
 {
 	FILE* fout = fopen(output, "wb");
 	if (!fout) return false;
 
 	int counter = 0;
-	fputs("#include \"stb_resource.h\"\n", fout);
-	bool res = stb_compile_dir(path, pattern, fout, &counter);
-	fputs("const stb_resource stb_resources_storage[] = {\n", fout);
+	fputs("#include \"mf_resource.h\"\n", fout);
+	bool res = mf_compile_dir(path, pattern, fout, &counter);
+	fputs("const mf_resource mf_resources_storage[] = {\n", fout);
 	for (int i = 0; i < counter; ++i)
 	{
-		fprintf(fout, "{ stb_resource_%d_path, stb_resource_%d_value, stb_resource_%d_size }, ", i, i, i);
+		fprintf(fout, "{ mf_resource_%d_path, mf_resource_%d_value, mf_resource_%d_size }, ", i, i, i);
 	}
-	fputs("};\nconst stb_resource* stb_resources = stb_resources_storage;\n", fout);
-	fputs("int stb_resources_count = sizeof(stb_resources_storage) / sizeof(stb_resources_storage[0]);\n", fout);
+	fputs("};\nconst mf_resource* mf_resources = mf_resources_storage;\n", fout);
+	fputs("int mf_resources_count = sizeof(mf_resources_storage) / sizeof(mf_resources_storage[0]);\n", fout);
 	fclose(fout);
 	return res;
 }
 
 
-inline const stb_resource* stb_get_resource(const char* path)
+inline const mf_resource* mf_get_resource(const char* path)
 {
-	for (int i = 0; i < stb_resources_count; ++i)
+	for (int i = 0; i < mf_resources_count; ++i)
 	{
-		const stb_resource* res = &stb_resources[i];
+		const mf_resource* res = &mf_resources[i];
 		if (strcmp(path, res->path) == 0) return res;
 	}
-	return (const stb_resource*)0;
+	return (const mf_resource*)0;
 }
 
 
-inline const stb_resource* stb_get_all_resources()
+inline const mf_resource* mf_get_all_resources()
 {
-	return stb_resources;
+	return mf_resources;
 }
 
 
-inline int stb_get_all_resources_count()
+inline int mf_get_all_resources_count()
 {
-	return stb_resources_count;
+	return mf_resources_count;
 }

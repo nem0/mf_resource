@@ -49,7 +49,7 @@ function defaultConfigurations()
 end
 
 
-solution "stb_resource"
+solution "mf_resource"
 	if _ACTION == "gmake" then
 		configuration { "android-*" }
 			flags {
@@ -209,7 +209,7 @@ solution "stb_resource"
 		}
 
 
-project "stb_resource"
+project "mf_resource"
 	kind "ConsoleApp"
 
 	debugdir ("../test")
