@@ -23,16 +23,20 @@
 #pragma once
 #ifndef _WIN32
 #error unsupported platform
+#else
+#define _CRT_SECURE_NO_WARNINGS
+#ifndef STB_RESOURCE_DONT_INCLUDE_WINDOWS_H
+#include <windows.h>
+#endif
 #endif
 
 #include <cstdio>
-#include <windows.h>
 
 
 struct stb_resource
 {
 	const char* path;
-	const char* value;
+	const unsigned char* value;
 	size_t size;
 };
 
@@ -41,30 +45,33 @@ extern const stb_resource* stb_resources;
 extern int stb_resources_count;
 
 
-inline bool stb_compile_file(const char* file, FILE* fout)
+inline bool stb_compile_file(const char* file, FILE* fout, int* counter)
 {
 	FILE* fin = fopen(file, "rb");
 	if (!fin) return false;
 	size_t size = 0;
-	fprintf(fout, "{\"%s\", \"", file);
+	fprintf(fout, "const char* stb_resource_%d_path = \"%s\";\n", *counter, file);
+	fprintf(fout, "const unsigned char stb_resource_%d_value[] = {", *counter);
 	while (!feof(fin))
 	{
 		unsigned char tmp[1024];
 		size_t read = fread(tmp, 1, 1024, fin);
 		for (size_t i = 0; i < read; ++i)
 		{
-			fprintf(fout, "\\x%x", (int)tmp[i]);
+			fprintf(fout, "0x%x,", (int)tmp[i]);
 		}
 		size += read;
 	}
-	fprintf(fout, "\", %d}\n,", (int)size);
+	fputs("};\n", fout);
+	fprintf(fout, "const size_t stb_resource_%d_size = %d;\n", *counter, (int)size);
 
+	++(*counter);
 	fclose(fin);
 	return true;
 }
 
 
-inline bool stb_compile_dir(const char* path, const char* pattern, FILE* fout)
+inline bool stb_compile_dir(const char* path, const char* pattern, FILE* fout, int* counter)
 {
 	WIN32_FIND_DATAA data;
 	char tmp[MAX_PATH];
@@ -78,11 +85,11 @@ inline bool stb_compile_dir(const char* path, const char* pattern, FILE* fout)
 		if (strcmp(data.cFileName, "..") == 0) continue;
 		bool is_directory = (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 		strcpy_s(tmp, path);
-		strcat_s(tmp, data.cFileName); 
+		strcat_s(tmp, data.cFileName);
 		if (is_directory)
 		{
 			strcat_s(tmp, "/");
-			if (!stb_compile_dir(tmp, pattern, fout))
+			if (!stb_compile_dir(tmp, pattern, fout, counter))
 			{
 				FindClose(h);
 				return false;
@@ -90,7 +97,7 @@ inline bool stb_compile_dir(const char* path, const char* pattern, FILE* fout)
 		}
 		else
 		{
-			if (!stb_compile_file(tmp, fout))
+			if (!stb_compile_file(tmp, fout, counter))
 			{
 				FindClose(h);
 				return false;
@@ -107,9 +114,14 @@ inline bool stb_compile_dir(const char* path, const char* pattern, const char* o
 	FILE* fout = fopen(output, "wb");
 	if (!fout) return false;
 
+	int counter = 0;
 	fputs("#include \"stb_resource.h\"\n", fout);
+	bool res = stb_compile_dir(path, pattern, fout, &counter);
 	fputs("const stb_resource stb_resources_storage[] = {\n", fout);
-	bool res = stb_compile_dir(path, pattern, fout);
+	for (int i = 0; i < counter; ++i)
+	{
+		fprintf(fout, "{ stb_resource_%d_path, stb_resource_%d_value, stb_resource_%d_size }, ", i, i, i);
+	}
 	fputs("};\nconst stb_resource* stb_resources = stb_resources_storage;\n", fout);
 	fputs("int stb_resources_count = sizeof(stb_resources_storage) / sizeof(stb_resources_storage[0]);\n", fout);
 	fclose(fout);
