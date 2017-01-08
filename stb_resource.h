@@ -24,10 +24,12 @@
 #ifndef _WIN32
 #error unsupported platform
 #else
-#define _CRT_SECURE_NO_WARNINGS
-#ifndef STB_RESOURCE_DONT_INCLUDE_WINDOWS_H
-#include <windows.h>
-#endif
+	#ifndef _CRT_SECURE_NO_WARNINGS
+		#define _CRT_SECURE_NO_WARNINGS
+	#endif
+	#ifndef STB_RESOURCE_DONT_INCLUDE_WINDOWS_H
+		#include <windows.h>
+	#endif
 #endif
 
 #include <cstdio>
@@ -137,4 +139,16 @@ inline const stb_resource* stb_get_resource(const char* path)
 		if (strcmp(path, res->path) == 0) return res;
 	}
 	return (const stb_resource*)0;
+}
+
+
+inline const stb_resource* stb_get_all_resources()
+{
+	return stb_resources;
+}
+
+
+inline int stb_get_all_resources_count()
+{
+	return stb_resources_count;
 }
