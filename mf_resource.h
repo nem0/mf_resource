@@ -15,23 +15,28 @@
 // if(res) printf("%s", res->value);
 
 // TODO:
-// - Linux version
 // - optimize mf_get_resource - something better than linear search with strcmp
 // - define which files to compile in yaml file
 // - text mode
 // - handle case when no resources are found
 
 #pragma once
-#ifndef _WIN32
-#error unsupported platform
-#else
+#ifdef _WIN32
 	#ifndef _CRT_SECURE_NO_WARNINGS
 		#define _CRT_SECURE_NO_WARNINGS
 	#endif
 	#ifndef mf_RESOURCE_DONT_INCLUDE_WINDOWS_H
 		#include <windows.h>
 	#endif
+#elif defined (__linux__)
+	#include <linux/limits.h>
+	#include <stdio.h>
+	#include <string.h>
+	#include <dirent.h>
+#else
+	#error Unsupported platform
 #endif
+
 
 #include <cstdio>
 
@@ -93,6 +98,7 @@ inline bool mf_compile_file(const char* file, FILE* fout, int* counter)
 }
 
 
+#ifdef _WIN32
 inline bool mf_compile_dir_internal(const char* path, const char* pattern, FILE* fout, int* counter)
 {
 	WIN32_FIND_DATAA data;
@@ -129,6 +135,44 @@ inline bool mf_compile_dir_internal(const char* path, const char* pattern, FILE*
 	FindClose(h);
 	return true;
 }
+#elif defined(__linux__)
+inline bool mf_compile_dir_internal(const char* path, const char* pattern, FILE* fout, int* counter)
+{
+	DIR* dir = opendir(path);
+	if(!dir) return true;
+
+	char tmp[PATH_MAX];
+	struct dirent* dirent = readdir(dir);
+	while(dirent != NULL)
+	{
+		if(strcmp(dirent->d_name, ".") == 0) continue;
+		if(strcmp(dirent->d_name, "..") == 0) continue;
+
+		strcpy(tmp, path);
+		strcat(tmp, dirent->d_name);
+
+		if(dirent->d_type == DT_DIR)
+		{
+			if(!mf_compile_dir_internal(tmp, pattern, fout, counter))
+			{
+				closedir(dir);
+				return false;
+			}
+		}
+		else
+		{
+			if(!mf_compile_file(tmp, fout, counter))
+			{
+				closedir(dir);
+				return false;
+			}
+		}
+		dirent = readdir(dir);
+	}
+	closedir(dir);
+	return true;
+}
+#endif
 
 
 inline bool mf_compile(mf_resource_compiler* compiler, const char* path, const char* pattern)
